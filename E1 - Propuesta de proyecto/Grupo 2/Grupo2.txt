@@ -1,1 +1,268 @@
+```markdown
+# Diseño lógico de un Ensamblador de Tramas de Telemetría basado en FSM
+
+**Paul Angelo Landeo Aucapiña**  
+**Ana Lucía Inés Díaz Yerén**  
+**Gerardo Antony Moreno Medina**  
+**Joseph David Terrones León**
+
+Escuela Profesional de Ingeniería de Telecomunicaciones  
+Universidad Nacional Mayor de San Marcos  
+Lima, Perú
+
+---
+
+# Problema de investigación
+
+En las Redes de Sensores Inalámbricos (WSN), los nodos de borde capturan información física de manera asíncrona. Si estos datos se transmiten al medio físico en su formato crudo, se generan fallas críticas de enlace como colisiones por acceso simultáneo, desincronización en el receptor y un alto índice de pérdida de paquetes. Debido a que la retransmisión por fallas representa uno de los procesos de mayor consumo energético, el problema fundamental radica en la baja eficiencia y confiabilidad del enlace de comunicación.
+
+Como solución, se propone el empaquetado estructurado de los datos mediante un sistema lógico digital implementado sobre un ESP32-S3. Este sistema encapsula la carga útil proveniente de los sensores junto con cabeceras de sincronización (SHR) y bits de control, conformando una trama estandarizada antes de transmitirla hacia el canal de telecomunicaciones.
+
+---
+
+# Objetivos de la investigación
+
+## Objetivo General
+
+Diseñar e implementar un sistema digital estructurador de tramas de telemetría basado en una arquitectura FSM + Decodificador + Memoria, con el propósito de mejorar la eficiencia y confiabilidad de transmisión en sistemas WSN.
+
+---
+
+## Objetivos Específicos
+
+- Implementar una Máquina de Estados Finitos (FSM) que controle secuencialmente las fases de captura, decodificación, empaquetado y transmisión de datos.
+
+- Implementar un circuito decodificador combinacional que, recibiendo el valor de un bus de direcciones proveniente de un contador, genere señales exclusivas de selección de memoria.
+
+- Evaluar el diseño de hardware mediante la validación experimental de métricas cuantitativas relacionadas con el rendimiento y la temporización.
+
+- Estructurar el subsistema de almacenamiento definiendo una partición ROM estática para almacenar cabeceras y una RAM dinámica que funcione como buffer temporal de telemetría.
+
+---
+
+# Diagrama de Bloques Preliminar
+
+El sistema propuesto corresponde a un ensamblador de tramas de telemetría encargado de capturar datos provenientes de sensores, almacenarlos temporalmente, estructurarlos mediante cabeceras predefinidas y transmitirlos a través de una interfaz UART.
+
+La arquitectura se divide en dos bloques principales:
+
+- Ruta de Datos
+- Ruta de Control
+
+---
+
+# Ruta de Datos
+
+El sistema inicia con un sensor que se comunica mediante protocolo I2C utilizando las líneas SDA y SCL. Los datos son recibidos por una interfaz I2C encargada de adaptar la comunicación serial hacia un formato de bus paralelo.
+
+Los datos capturados son almacenados en una memoria RAM, permitiendo guardar múltiples muestras para su posterior procesamiento. Paralelamente, el sistema incorpora una memoria ROM donde se almacenan cabeceras fijas de la trama, como:
+
+- Campos de sincronización
+- Tipo de mensaje
+- Identificadores
+- Bits de control
+
+Para seleccionar entre los datos provenientes de la RAM y las cabeceras almacenadas en ROM se utiliza un multiplexor (MUX). Este bloque es controlado por la FSM y determina qué información será enviada al siguiente módulo.
+
+La salida del multiplexor se dirige a un registro de desplazamiento encargado de convertir datos paralelos en una secuencia serial.
+
+Finalmente, los datos son transmitidos mediante un módulo UART TX, el cual constituye la salida principal del sistema.
+
+---
+
+# Ruta de Control
+
+La ruta de control coordina el funcionamiento integral de todos los bloques del sistema.
+
+El elemento principal es la Máquina de Estados Finitos (FSM), la cual actúa como unidad central de control, recibiendo señales de entrada y generando señales de control para sincronizar las operaciones del sistema.
+
+El direccionamiento de memoria se realiza mediante un contador de direcciones que genera secuencias binarias para recorrer las posiciones de memoria RAM.
+
+Estas direcciones son procesadas por un decodificador lógico, cuya función es activar exclusivamente una posición de memoria en cada instante.
+
+La FSM controla:
+
+- Acceso a memoria
+- Selección de datos
+- Operación del multiplexor
+- Control del registro de desplazamiento
+- Transmisión UART
+
+---
+
+# Plataforma Seleccionada
+
+Se seleccionó el microcontrolador **ESP32-S3** debido a las siguientes características:
+
+- Arquitectura de alta velocidad
+- Capacidad para ejecutar FSM complejas con temporización estricta
+- Amplia memoria SRAM
+- Interfaces hardware integradas
+- GPIO de alta velocidad
+- Compatibilidad con UART e I2C
+
+Estas características permiten implementar tanto la lógica de control como los mecanismos de instrumentación necesarios para obtener métricas temporales en microsegundos.
+
+---
+
+# Métricas Propuestas
+
+## Latencia de Ensamblado
+
+Se medirá el tiempo transcurrido desde la recepción del último byte de telemetría hasta que la trama esté completamente lista en el registro de salida.
+
+La medición se realizará utilizando:
+
+- Temporizadores internos
+- GPIO de monitoreo
+- Registros de tiempo en microsegundos
+
+---
+
+## Eficiencia de Trama
+
+Se evaluará la relación porcentual entre:
+
+- Datos útiles (payload)
+- Tamaño total de la trama transmitida
+
+La evaluación considerará:
+
+- Cabeceras
+- Bits de control
+- Datos de sincronización
+- Sobrecarga introducida por el empaquetado
+
+---
+
+## Tiempo de Acceso a Memoria
+
+Se medirá el intervalo comprendido entre:
+
+1. Activación de la señal de lectura por parte de la FSM
+2. Disponibilidad del dato en la salida de memoria
+
+Esta métrica permitirá verificar:
+
+- Sincronización del subsistema de memoria
+- Correcto funcionamiento del decodificador
+- Rendimiento temporal del acceso RAM/ROM
+
+---
+
+## Throughput de Transmisión
+
+Se analizará la cantidad de información transmitida exitosamente por unidad de tiempo a través de la interfaz UART.
+
+La medición considerará:
+
+- Número total de bits transmitidos
+- Tiempo total requerido para completar la transmisión de una trama
+
+---
+
+# Plan de Trabajo y Cronograma Interno
+
+## Semana 6
+### Diseño RTL de la FSM y Decodificador
+
+- Creación de diagramas FSM
+- Diagramas ASM
+- Codificación HDL
+
+---
+
+## Semana 7
+### Modelado de Memoria y Casos de Prueba
+
+- Definición de ROM estática
+- Definición de RAM dinámica
+- Preparación del testbench
+
+---
+
+## Semana 8
+### Simulación Funcional Completa
+
+- Documento de diseño detallado
+- Simulación del sistema completo
+- Validación del acceso a memoria
+
+---
+
+## Semana 9
+### Preparación del Entorno Hardware
+
+- Configuración inicial del ESP32-S3
+- Definición de pinout
+- Asignación de recursos hardware
+
+---
+
+## Semana 10
+### Implementación Preliminar
+
+- Despliegue del diseño lógico
+- Pruebas de conectividad I2C
+
+---
+
+## Semana 11
+### Prototipo Hardware Inicial
+
+- Implementación funcional inicial
+- Medición experimental de al menos una métrica
+- Comparación preliminar con simulación
+- Video demostrativo corto
+
+---
+
+## Semana 12
+### Pruebas y Mediciones Extendidas
+
+- Evaluación de latencia de ensamblado
+- Evaluación de acceso a memoria
+
+---
+
+## Semana 13
+### Sistema Completo Verificado
+
+- Sistema funcional completo
+- Tabla comparativa entre simulación y hardware
+- Borrador del paper IEEE
+
+---
+
+## Semana 14
+### Revisión y Análisis Crítico
+
+- Corrección del artículo
+- Refinamiento del código
+- Análisis de resultados experimentales
+
+---
+
+## Semana 15
+### Paper Final e Informe de Cierre
+
+- Paper en formato IEEE (8–15 páginas)
+- Video demostrativo final de 5 minutos
+
+---
+
+# Referencias
+
+1. C. Egas Acosta y F. Gil-Castiñeira, “Revisión de requisitos, protocolos y desafíos en LWSN”, *MASKAY*, vol. 11, n.º 1, pp. 13–21, mayo 2021.  
+   DOI: https://doi.org/10.24133/maskay.v11i1.1728
+
+2. Espressif Systems, “ESP32-S3 Series Datasheet”, v1.6, Espressif Systems, Shanghái, China, 2024.  
+   Disponible en: https://documentation.espressif.com/esp32-s3_datasheet_en.html
+
+3. MathWorks, “Introducción a state machines”, MathWorks, 2026.  
+   Disponible en: https://la.mathworks.com/discovery/state-machine.html
+
+4. Amazon Web Services, “Conceptos sobre los datos de telemetría”, AWS Documentation, 2026.  
+   Disponible en: https://docs.aws.amazon.com/es_es/ground-station/latest/ug/telemetry.understanding-data.html
+```
 
